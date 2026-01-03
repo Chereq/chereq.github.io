@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UPS Web Interface</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --card-bg: #2d2d2d;
+            --text-main: #e0e0e0;
+            --text-muted: #a0a0a0;
+            --accent-green: #4caf50;
+            --accent-blue: #2196f3;
+            --accent-red: #f44336;
+            --accent-yellow: #ff9800;
+            --line-inactive: #444;
+        }
+
+        body.light-theme {
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --text-main: #2c3e50;
+            --text-muted: #7f8c8d;
+            --line-inactive: #e0e0e0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            max-width: 1000px;
+            margin-bottom: 20px;
+        }
+
+        h1 { margin: 0; font-weight: 300; }
+
+        .theme-toggle {
+            background: var(--card-bg);
+            border: 1px solid var(--line-inactive);
+            color: var(--text-main);
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .container {
+            max-width: 1000px;
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+
+        .panel {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: background-color 0.3s;
+        }
+
+        .panel-header {
+            font-size: 1.1em;
+            margin-bottom: 15px;
+            border-bottom: 1px solid var(--line-inactive);
+            padding-bottom: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .metric-card {
+            background: rgba(0,0,0,0.05);
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid var(--line-inactive);
+        }
+
+        .metric-card.input { border-color: var(--accent-blue); }
+        .metric-card.output { border-color: var(--accent-green); }
+        .metric-card.battery { border-color: var(--accent-yellow); }
+
+        .metric-title { font-size: 0.9em; color: var(--text-muted); }
+        .metric-value { font-size: 1.8em; font-weight: bold; margin: 5px 0; }
+        .metric-sub { font-size: 0.85em; opacity: 0.8; }
+
+        .battery-container {
+            width: 100%;
+            height: 20px;
+            background: var(--line-inactive);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 10px;
+            position: relative;
+        }
+        .battery-fill {
+            height: 100%;
+            background: var(--accent-green);
+            width: 0%;
+            transition: width 0.5s ease, background-color 0.5s;
+        }
+
+        .diagram-container {
+            display: flex;
+            justify-content: center;
+            overflow-x: auto;
+        }
+
+        svg {
+            max-width: 100%;
+            height: auto;
+            min-width: 600px;
+        }
+
+        .svg-block { fill: var(--card-bg); stroke: var(--line-inactive); stroke-width: 2; transition: fill 0.3s, stroke 0.3s; }
+        .svg-text { fill: var(--text-main); font-family: sans-serif; font-size: 14px; text-anchor: middle; font-weight: bold; }
+        .svg-text-label { fill: var(--text-muted); font-size: 12px; text-anchor: middle; }
+        .svg-text-data { fill: var(--text-main); font-size: 12px; text-anchor: middle; font-family: monospace; }
+        .svg-path { 
+            fill: none; 
+            stroke: var(--line-inactive); 
+            stroke-width: 3; 
+            stroke-linecap: round; 
+            transition: stroke 0.3s;
+        }
+
+        .flow-active { stroke: var(--accent-blue); stroke-dasharray: 10, 10; animation: flowAnimation 1s linear infinite; }
+        .flow-charging { stroke: var(--accent-yellow); stroke-dasharray: 10, 10; animation: flowAnimation 1s linear infinite; }
+        .flow-discharging { stroke: var(--accent-red); stroke-dasharray: 10, 10; animation: flowAnimationReverse 1s linear infinite; }
+
+        @keyframes flowAnimation { from { stroke-dashoffset: 20; } to { stroke-dashoffset: 0; } }
+        @keyframes flowAnimationReverse { from { stroke-dashoffset: 0; } to { stroke-dashoffset: 20; } }
+
+        .status-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 4px;
+            background: var(--line-inactive);
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header-container">
+        <h1>UPS Control Module <span id="sys-status" class="status-badge">Initializing...</span></h1>
+        <button class="theme-toggle" id="theme-switch">Toggle Theme</button>
+    </div>
+
+    <div class="container">
+        
+        <div class="panel">
+            <div class="panel-header">Power Path Topology</div>
+            <div class="diagram-container">
+                <svg width="800" height="320" viewBox="0 0 800 320">
+                    <defs>
+                        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                            <polygon points="0 0, 10 3.5, 0 7" fill="#666" />
+                        </marker>
+                    </defs>
+
+                    <rect x="20" y="100" width="120" height="90" rx="5" class="svg-block" />
+                    <text x="80" y="125" class="svg-text">INPUT</text>
+                    <text x="80" y="145" class="svg-text-label">24V DC Source</text>
+                    <text x="80" y="170" class="svg-text-data" id="svg-in-data">--V / --A</text>
+
+                    <rect x="250" y="210" width="130" height="90" rx="5" class="svg-block" />
+                    <text x="315" y="235" class="svg-text">CHARGER</text>
+                    <text x="315" y="255" class="svg-text-label">Buck Converter</text>
+                    <text x="315" y="280" class="svg-text-data" id="svg-chg-data">--W / --°C</text>
+
+                    <rect x="460" y="210" width="130" height="90" rx="5" class="svg-block" />
+                    <text x="525" y="235" class="svg-text">BATTERY</text>
+                    <text x="525" y="255" class="svg-text-label">4S Li-Ion</text>
+                    <text x="525" y="280" class="svg-text-data" id="svg-bat-data">--V / --A</text>
+
+                    <rect x="460" y="20" width="140" height="90" rx="5" class="svg-block" />
+                    <text x="530" y="45" class="svg-text">OUT CONVERTER</text>
+                    <text x="530" y="65" class="svg-text-label">Regulator 12V</text>
+                    <text x="530" y="90" class="svg-text-data" id="svg-conv-data">--W / --°C</text>
+
+                    <rect x="680" y="100" width="100" height="90" rx="5" class="svg-block" />
+                    <text x="730" y="125" class="svg-text">OUTPUT</text>
+                    <text x="730" y="145" class="svg-text-label">Load</text>
+                    <text x="730" y="170" class="svg-text-data" id="svg-out-data">--V / --A</text>
+
+                    <path d="M 140 145 L 180 145 L 180 65 L 460 65" id="path-input-bypass" class="svg-path" />
+                    <path d="M 180 145 L 180 255 L 250 255" id="path-input-charger" class="svg-path" />
+                    <path d="M 380 255 L 460 255" id="path-charger-bat" class="svg-path" />
+                    <path d="M 525 210 L 525 110" id="path-bat-out" class="svg-path" />
+                    <path d="M 600 65 L 640 65 L 640 145 L 680 145" id="path-out-final" class="svg-path" />
+
+                </svg>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header">System Parameters</div>
+            <div class="metrics-grid">
+                <div class="metric-card input">
+                    <div class="metric-title">INPUT (DC)</div>
+                    <div class="metric-value" id="val-in-volt">-- V</div>
+                    <div class="metric-sub">Current: <span id="val-in-curr">--</span> A</div>
+                    <div class="metric-sub">Power: <span id="val-in-pow">--</span> W</div>
+                </div>
+                <div class="metric-card battery">
+                    <div class="metric-title">BATTERY (4S)</div>
+                    <div class="metric-value" id="val-bat-volt">-- V</div>
+                    <div class="metric-sub">Current: <span id="val-bat-curr">--</span> A</div>
+                    <div class="battery-container">
+                        <div class="battery-fill" id="bat-soc-bar"></div>
+                    </div>
+                    <div class="metric-sub" style="margin-top:5px; text-align: right;">SoC: <span id="val-bat-soc">--</span>%</div>
+                </div>
+                <div class="metric-card output">
+                    <div class="metric-title">OUTPUT</div>
+                    <div class="metric-value" id="val-out-volt">-- V</div>
+                    <div class="metric-sub">Current: <span id="val-out-curr">--</span> A</div>
+                    <div class="metric-sub">Power: <span id="val-out-pow">--</span> W</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const REFRESH_RATE_MS = 1000;
+        const els = {
+            inVolt: document.getElementById('val-in-volt'), inCurr: document.getElementById('val-in-curr'), inPow: document.getElementById('val-in-pow'),
+            batVolt: document.getElementById('val-bat-volt'), batCurr: document.getElementById('val-bat-curr'), batSoc: document.getElementById('val-bat-soc'), batBar: document.getElementById('bat-soc-bar'),
+            outVolt: document.getElementById('val-out-volt'), outCurr: document.getElementById('val-out-curr'), outPow: document.getElementById('val-out-pow'),
+            sysStatus: document.getElementById('sys-status'),
+            pInBypass: document.getElementById('path-input-bypass'), pInCharger: document.getElementById('path-input-charger'),
+            pChargerBat: document.getElementById('path-charger-bat'), pBatOut: document.getElementById('path-bat-out'), pOutFinal: document.getElementById('path-out-final'),
+            // SVG Data Elements
+            svgInData: document.getElementById('svg-in-data'), svgChgData: document.getElementById('svg-chg-data'),
+            svgBatData: document.getElementById('svg-bat-data'), svgConvData: document.getElementById('svg-conv-data'), svgOutData: document.getElementById('svg-out-data'),
+            themeSwitch: document.getElementById('theme-switch')
+        };
+
+        els.themeSwitch.addEventListener('click', () => document.body.classList.toggle('light-theme'));
+
+        let simState = { inputPresent: true, soc: 80.0, lastToggle: Date.now(), tempChg: 35, tempConv: 40 };
+
+        function getMockData() {
+            const now = Date.now();
+            if (now - simState.lastToggle > 15000) { simState.inputPresent = !simState.inputPresent; simState.lastToggle = now; }
+            const noise = () => (Math.random() - 0.5) * 0.2;
+            let data = {
+                input: { voltage: 0, current: 0, power: 0 },
+                output: { voltage: 12.0 + noise(), current: 2.5 + noise(), power: 0 },
+                battery: { voltage: 0, current: 0, soc: simState.soc, power: 0 },
+                temps: { charger: simState.tempChg + noise()*5, converter: simState.tempConv + noise()*5 }
+            };
+            data.output.power = data.output.voltage * data.output.current;
+
+            if (simState.inputPresent) {
+                data.input.voltage = 24.0 + noise();
+                if (simState.soc < 98) { data.battery.current = 1.5; simState.soc += 0.5; simState.tempChg += 0.5; } 
+                else { data.battery.current = 0.1; simState.tempChg -= 0.2; }
+                data.battery.voltage = 14.0 + (simState.soc / 100 * 2.8) + noise();
+                data.battery.power = data.battery.voltage * data.battery.current;
+                data.input.power = (data.output.power + data.battery.power) / 0.9;
+                data.input.current = data.input.power / data.input.voltage;
+                simState.tempConv -= 0.1;
+            } else {
+                data.input.voltage = 0; data.input.current = 0; data.input.power = 0;
+                data.battery.current = -1 * (data.output.power / 0.9 / 14.0);
+                simState.soc -= 0.8; if (simState.soc < 0) simState.soc = 0;
+                data.battery.voltage = 14.0 + (simState.soc / 100 * 2.8) - 0.5 + noise();
+                data.battery.power = data.battery.voltage * data.battery.current;
+                simState.tempChg -= 0.5; simState.tempConv += 0.3;
+            }
+            data.battery.soc = Math.min(100, Math.max(0, simState.soc));
+            simState.tempChg = Math.min(65, Math.max(25, simState.tempChg));
+            simState.tempConv = Math.min(70, Math.max(30, simState.tempConv));
+            return Promise.resolve(data);
+        }
+
+        function updateInterface(data) {
+            els.inVolt.textContent = data.input.voltage.toFixed(1) + " V"; els.inCurr.textContent = data.input.current.toFixed(2); els.inPow.textContent = data.input.power.toFixed(1);
+            els.outVolt.textContent = data.output.voltage.toFixed(1) + " V"; els.outCurr.textContent = data.output.current.toFixed(2); els.outPow.textContent = data.output.power.toFixed(1);
+            els.batVolt.textContent = data.battery.voltage.toFixed(1) + " V"; els.batCurr.textContent = data.battery.current.toFixed(2); els.batSoc.textContent = data.battery.soc.toFixed(0);
+
+            els.batBar.style.width = `${data.battery.soc}%`;
+            els.batBar.style.backgroundColor = data.battery.soc < 20 ? 'var(--accent-red)' : data.battery.soc < 50 ? 'var(--accent-yellow)' : 'var(--accent-green)';
+
+            // Update SVG Data Labels
+            els.svgInData.textContent = `${data.input.voltage.toFixed(1)}V / ${data.input.current.toFixed(1)}A`;
+            els.svgChgData.textContent = `${Math.abs(data.battery.power).toFixed(0)}W / ${data.temps.charger.toFixed(0)}°C`;
+            els.svgBatData.textContent = `${data.battery.voltage.toFixed(1)}V / ${data.battery.current.toFixed(1)}A`;
+            els.svgConvData.textContent = `${data.output.power.toFixed(0)}W / ${data.temps.converter.toFixed(0)}°C`;
+            els.svgOutData.textContent = `${data.output.voltage.toFixed(1)}V / ${data.output.current.toFixed(1)}A`;
+
+            const isInputActive = data.input.voltage > 18.0;
+            [els.pInBypass, els.pInCharger, els.pChargerBat, els.pBatOut, els.pOutFinal].forEach(p => p.setAttribute('class', 'svg-path'));
+
+            if (isInputActive) {
+                els.sysStatus.textContent = "MAINS POWER"; els.sysStatus.style.color = "var(--accent-blue)";
+                els.pInBypass.classList.add('flow-active'); els.pInCharger.classList.add('flow-active');
+                if (data.battery.current > 0.2) els.pChargerBat.classList.add('flow-charging');
+                els.pOutFinal.classList.add('flow-active');
+            } else {
+                els.sysStatus.textContent = "BATTERY BACKUP"; els.sysStatus.style.color = "var(--accent-yellow)";
+                if (data.battery.current < -0.1) { els.pBatOut.classList.add('flow-discharging'); els.pOutFinal.classList.add('flow-active'); }
+            }
+        }
+
+        setInterval(() => getMockData().then(updateInterface), REFRESH_RATE_MS);
+    </script>
+</body>
+</html>
