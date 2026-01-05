@@ -10,7 +10,7 @@
             --card-bg: #2d2d2d;
             --text-main: #e0e0e0;
             --text-muted: #a0a0a0;
-            
+
             /* Main Semantic Colors */
             --accent-blue: #2196f3;   /* Input */
             --accent-yellow: #ff9800; /* Battery */
@@ -18,7 +18,7 @@
             --accent-slate: #607d8b;  /* System/Internal (Converter, Charger, Test) */
             --accent-purple: #9c27b0; /* Active Test Mode Flow */
             --accent-red: #f44336;    /* Critical/Backup Flow */
-            
+
             --line-inactive: #444;
         }
 
@@ -89,14 +89,14 @@
 
         /* SVG Sizing */
         .diagram-wrapper { width: 100%; line-height: 0; }
-        svg { width: 100%; height: auto; display: block; }
+        svg { width: 100%; height: auto; display: block; user-select: none; pointer-events: none; }
 
         /* Block Styles */
-        .svg-block { 
-            fill: var(--card-bg); 
-            stroke: var(--line-inactive); 
-            stroke-width: 2; 
-            transition: all 0.4s ease; 
+        .svg-block {
+            fill: var(--card-bg);
+            stroke: var(--line-inactive);
+            stroke-width: 2;
+            transition: all 0.4s ease;
         }
 
         /* Active Block Highlights */
@@ -110,13 +110,13 @@
         .svg-text-bold { fill: var(--text-main); font-size: 16px; font-weight: bold; text-anchor: middle; pointer-events: none; }
         .svg-text-desc { fill: var(--text-muted); font-size: 13px; text-anchor: middle; pointer-events: none; }
         .svg-text-data { fill: var(--text-main); font-size: 14px; font-weight: bold; text-anchor: middle; font-family: monospace; pointer-events: none; }
-        
+
         /* Paths */
         .svg-path { fill: none; stroke: var(--line-inactive); stroke-width: 4; stroke-linecap: round; transition: stroke 0.3s; }
 
         /* Animation Classes */
         .anim-fwd { stroke-dasharray: 12, 8; animation: dash-fwd 1s linear infinite; }
-        
+
         .stroke-blue { stroke: var(--accent-blue); }
         .stroke-yellow { stroke: var(--accent-yellow); }
         .stroke-red { stroke: var(--accent-red); }
@@ -132,7 +132,7 @@
         @media (max-width: 768px) {
             .diagram-desktop { display: none; }
             .diagram-mobile { display: block; }
-            .svg-text-bold { font-size: 18px; } 
+            .svg-text-bold { font-size: 18px; }
             .svg-text-data { font-size: 16px; }
         }
 
@@ -146,7 +146,7 @@
         .metric-sub { font-size: 0.9rem; color: var(--text-muted); }
         .battery-container { width: 100%; height: 14px; background: var(--line-inactive); border-radius: 3px; overflow: hidden; margin: 8px 0; }
         .battery-fill { height: 100%; background: var(--accent-green); transition: width 0.5s; }
-        .status-badge { padding: 4px 10px; border-radius: 4px; background: var(--line-inactive); font-weight: bold; font-size: 0.8rem; }
+        .status-badge { padding: 4px 10px; vertical-align: middle; border-radius: 4px; background: var(--line-inactive); font-weight: bold; font-size: 0.8rem; }
     </style>
 </head>
 <body>
@@ -157,27 +157,19 @@
     </div>
 
     <div class="container">
-        
+
         <div class="panel">
             <div class="panel-header">Power Scheme</div>
             <div class="diagram-wrapper">
-                
-                <svg class="diagram-desktop" viewBox="0 0 900 280">
-                    
-                    <path d="M 150 135 L 180 135" class="svg-path p-in-main" />
-                    
-                    <path d="M 180 135 L 180 55 L 460 55" class="svg-path p-bypass" /> 
-                    
-                    <path d="M 180 135 L 180 225 L 220 225" class="svg-path p-in-chg" /> 
-                    
-                    <path d="M 390 225 L 460 225" class="svg-path p-chg-bat" /> 
-                    
-                    <path d="M 545 180 L 545 100" class="svg-path p-bat-conv" />
-                    
-                    <path d="M 630 55 L 690 55" class="svg-path p-out" /> 
-                    
-                    <path d="M 630 225 L 690 225" class="svg-path p-bat-test" /> 
 
+                <svg class="diagram-desktop" viewBox="0 0 900 280">
+                    <path d="M 152 135 L 180 135" class="svg-path p-in-main" />
+                    <path d="M 180 135 L 180 55 L 458 55" class="svg-path p-bypass" />
+                    <path d="M 180 135 L 180 225 L 218 225" class="svg-path p-in-chg" />
+                    <path d="M 392 225 L 458 225" class="svg-path p-chg-bat" />
+                    <path d="M 545 178 L 545 102" class="svg-path p-bat-conv" />
+                    <path d="M 632 55 L 688 55" class="svg-path p-out" />
+                    <path d="M 632 225 L 688 225" class="svg-path p-bat-test" />
 
                     <rect x="10" y="90" width="140" height="90" rx="6" class="svg-block r-input" />
                     <text x="80" y="115" class="svg-text-bold">INPUT</text>
@@ -210,15 +202,14 @@
                     <text x="775" y="250" class="svg-text-data txt-test">--</text>
                 </svg>
 
-
                 <svg class="diagram-mobile" viewBox="0 0 800 340">
-                    <path d="M 230 75 L 290 75" class="svg-path p-bypass" />
-                    <path d="M 120 140 L 120 200" class="svg-path p-in-chg" />
-                    <path d="M 230 265 L 290 265" class="svg-path p-chg-bat" />
-                    <path d="M 400 200 L 400 140" class="svg-path p-bat-conv" />
-                    <path d="M 510 75 L 570 75" class="svg-path p-out" />
-                    <path d="M 510 265 L 570 265" class="svg-path p-bat-test" />
-                    <path d="" class="svg-path p-in-main" style="display:none" /> 
+                    <path d="" class="svg-path p-in-main" style="display:none" />
+                    <path d="M 232 75 L 288 75" class="svg-path p-bypass" />
+                    <path d="M 120 142 L 120 198" class="svg-path p-in-chg" />
+                    <path d="M 232 265 L 288 265" class="svg-path p-chg-bat" />
+                    <path d="M 400 198 L 400 142" class="svg-path p-bat-conv" />
+                    <path d="M 512 75 L 568 75" class="svg-path p-out" />
+                    <path d="M 512 265 L 568 265" class="svg-path p-bat-test" />
 
                     <rect x="10" y="10" width="220" height="130" rx="8" class="svg-block r-input" />
                     <text x="120" y="45" class="svg-text-bold">INPUT</text>
@@ -286,13 +277,13 @@
             vBat: document.getElementById('v-bat'), aBat: document.getElementById('a-bat'), soc: document.getElementById('soc'), bFill: document.getElementById('b-fill'),
             vOut: document.getElementById('v-out'), aOut: document.getElementById('a-out'), wOut: document.getElementById('w-out'),
             status: document.getElementById('sys-status'),
-            
+
             // SVG Text
-            txtIn: getEls('.txt-in'), txtChg: getEls('.txt-chg'), txtBat: getEls('.txt-bat'), 
+            txtIn: getEls('.txt-in'), txtChg: getEls('.txt-chg'), txtBat: getEls('.txt-bat'),
             txtConv: getEls('.txt-conv'), txtOut: getEls('.txt-out'), txtTest: getEls('.txt-test'),
-            
+
             // SVG Blocks (Rects)
-            rIn: getEls('.r-input'), rChg: getEls('.r-chg'), rBat: getEls('.r-bat'), 
+            rIn: getEls('.r-input'), rChg: getEls('.r-chg'), rBat: getEls('.r-bat'),
             rConv: getEls('.r-conv'), rOut: getEls('.r-out'), rTest: getEls('.r-test'),
 
             // SVG Paths
@@ -317,7 +308,7 @@
 
             if (simState === 0) { // ONLINE
                 data.mode = 'ONLINE'; data.inV = 24.0 + noise();
-                if (soc < 98) { data.batA = 1.5; soc += 0.4; data.tempChg += 1; data.tempBat += 0.2; } 
+                if (soc < 98) { data.batA = 1.5; soc += 0.4; data.tempChg += 1; data.tempBat += 0.2; }
                 else { data.batA = 0.1; data.tempChg -= 0.5; data.tempBat -= 0.1; }
                 data.batV = 13.5 + (soc/100 * 3.0);
                 data.inA = (outPower + (data.batV * data.batA)) / 0.9 / data.inV;
@@ -357,7 +348,7 @@
             // Reset
             const resetClass = (list, cls) => list.forEach(el => el.setAttribute('class', cls));
             [els.pInMain, els.pBypass, els.pInChg, els.pChgBat, els.pBatConv, els.pOut, els.pBatTest].forEach(l => resetClass(l, 'svg-path'));
-            
+
             // Reset Blocks to base class
             const blockLists = [els.rIn, els.rChg, els.rBat, els.rConv, els.rOut, els.rTest];
             blockLists.forEach(list => list.forEach(el => el.setAttribute('class', 'svg-block ' + el.classList[1])));
@@ -374,9 +365,9 @@
                 addCls(els.pInMain, ['anim-fwd', 'stroke-blue']);
                 addCls(els.pBypass, ['anim-fwd', 'stroke-blue']);
                 addCls(els.pInChg, ['anim-fwd', 'stroke-blue']);
-                addCls(els.pChgBat, ['anim-fwd', 'stroke-yellow']); // Charging
+                addCls(els.pChgBat, ['anim-fwd', 'stroke-yellow']);
                 addCls(els.pOut, ['anim-fwd', 'stroke-blue']);
-                
+
                 // Blocks
                 highlight(els.rIn, 'blue');
                 highlight(els.rChg, 'system');
@@ -390,8 +381,8 @@
                 addCls(els.pInMain, ['anim-fwd', 'stroke-blue']);
                 addCls(els.pBypass, ['anim-fwd', 'stroke-blue']);
                 addCls(els.pOut, ['anim-fwd', 'stroke-blue']);
-                addCls(els.pBatTest, ['anim-fwd', 'stroke-purple']);
-                
+                addCls(els.pBatTest, ['anim-fwd', 'stroke-yellow']);
+
                 // Blocks
                 highlight(els.rIn, 'blue');
                 highlight(els.rConv, 'system');
@@ -402,12 +393,12 @@
             } else { // BACKUP
                 els.status.style.color = 'var(--accent-yellow)';
                 // Paths
-                addCls(els.pBatConv, ['anim-fwd', 'stroke-red']);
-                addCls(els.pOut, ['anim-fwd', 'stroke-blue']); // Converted power is "clean"
-                
+                addCls(els.pBatConv, ['anim-fwd', 'stroke-yellow']);
+                addCls(els.pOut, ['anim-fwd', 'stroke-yellow']);
+
                 // Blocks
                 highlight(els.rBat, 'yellow');
-                highlight(els.rConv, 'alert'); // Working hard on backup
+                highlight(els.rConv, 'system');
                 highlight(els.rOut, 'green');
             }
         }
