@@ -15,8 +15,7 @@
             --accent-blue: #2196f3;   /* Input */
             --accent-yellow: #ff9800; /* Battery */
             --accent-green: #4caf50;  /* Output */
-            --accent-slate: #607d8b;  /* System/Internal (Converter, Charger, Test) */
-            --accent-purple: #9c27b0; /* Active Test Mode Flow */
+            --accent-slate: #7FA4B5;  /* System/Internal (Converter, Charger, Test) */
             --accent-red: #f44336;    /* Critical/Backup Flow */
 
             --line-inactive: #444;
@@ -120,7 +119,6 @@
         .stroke-blue { stroke: var(--accent-blue); }
         .stroke-yellow { stroke: var(--accent-yellow); }
         .stroke-red { stroke: var(--accent-red); }
-        .stroke-purple { stroke: var(--accent-purple); }
         .stroke-green { stroke: var(--accent-green); }
 
         @keyframes dash-fwd { from { stroke-dashoffset: 20; } to { stroke-dashoffset: 0; } }
@@ -297,7 +295,7 @@
         let simState = 0; let tickCount = 0; let soc = 75.0;
 
         function updateSimulation() {
-            tickCount++; if (tickCount % 6 === 0) simState = (simState + 1) % 3;
+            tickCount++; if (tickCount % 6 === 0) simState = (simState + 1) % 4;
             const noise = () => (Math.random() - 0.5) * 0.15;
             let data = {
                 inV: 0, inA: 0, outV: 12.0 + noise(), outA: 3.5 + noise(), batV: 0, batA: 0, testW: 0,
@@ -306,14 +304,23 @@
             };
             const outPower = data.outV * data.outA;
 
-            if (simState === 0) { // ONLINE
-                data.mode = 'ONLINE'; data.inV = 24.0 + noise();
+            if (simState === 0) { // CHARGE
+                data.mode = 'CHARGE'; data.inV = 24.0 + noise();
                 if (soc < 98) { data.batA = 1.5; soc += 0.4; data.tempChg += 1; data.tempBat += 0.2; }
                 else { data.batA = 0.1; data.tempChg -= 0.5; data.tempBat -= 0.1; }
                 data.batV = 13.5 + (soc/100 * 3.0);
                 data.inA = (outPower + (data.batV * data.batA)) / 0.9 / data.inV;
                 data.tempTest -= 0.5;
-            } else if (simState === 1) { // TEST
+            } else if (simState === 1) { // ONLINE
+                data.mode = 'ONLINE';
+                data.inV = 24.0 + noise();
+                data.batA = 0.0;
+                data.batV = 13.5 + (soc/100 * 3.0);
+                data.inA = (outPower) / 0.92 / data.inV;
+                data.tempChg -= 0.3;
+                data.tempBat -= 0.1;
+                data.tempTest -= 0.3;
+            } else if (simState === 2) { // TEST
                 data.mode = 'BATTERY TEST'; data.inV = 24.0 + noise();
                 data.batA = -2.5; soc -= 0.3;
                 data.batV = 13.5 + (soc/100 * 3.0) - 0.3;
@@ -359,13 +366,13 @@
             const addCls = (list, clss) => list.forEach(el => el.classList.add(...clss));
             const highlight = (list, type) => list.forEach(el => el.classList.add(`active-${type}`));
 
-            if (simState === 0) { // ONLINE
+            if (simState === 0) { // CHARGE
                 els.status.style.color = 'var(--accent-blue)';
                 // Paths
                 addCls(els.pInMain, ['anim-fwd', 'stroke-blue']);
                 addCls(els.pBypass, ['anim-fwd', 'stroke-blue']);
                 addCls(els.pInChg, ['anim-fwd', 'stroke-blue']);
-                addCls(els.pChgBat, ['anim-fwd', 'stroke-yellow']);
+                addCls(els.pChgBat, ['anim-fwd', 'stroke-blue']);
                 addCls(els.pOut, ['anim-fwd', 'stroke-blue']);
 
                 // Blocks
@@ -375,8 +382,20 @@
                 highlight(els.rConv, 'system');
                 highlight(els.rOut, 'green');
 
-            } else if (simState === 1) { // TEST
-                els.status.style.color = 'var(--accent-purple)';
+            } else if (simState === 1) { // ONLINE
+                els.status.style.color = 'var(--accent-blue)';
+                // Paths
+                addCls(els.pInMain, ['anim-fwd', 'stroke-blue']);
+                addCls(els.pBypass, ['anim-fwd', 'stroke-blue']);
+                addCls(els.pOut, ['anim-fwd', 'stroke-blue']);
+
+                // Blocks
+                highlight(els.rIn, 'blue');
+                highlight(els.rConv, 'system');
+                highlight(els.rOut, 'green');
+
+            } else if (simState === 2) { // TEST
+                els.status.style.color = 'var(--accent-yellow)';
                 // Paths
                 addCls(els.pInMain, ['anim-fwd', 'stroke-blue']);
                 addCls(els.pBypass, ['anim-fwd', 'stroke-blue']);
