@@ -13,7 +13,7 @@
 
             /* Main Semantic Colors */
             --accent-blue: #2196f3;   /* Input */
-            --accent-yellow: #ff9800; /* Battery */
+            --accent-yellow: #d38b00; /* Battery */
             --accent-green: #4caf50;  /* Output */
             --accent-slate: #7FA4B5;  /* System/Internal (Converter, Charger, Test) */
             --accent-red: #f44336;    /* Critical/Backup Flow */
@@ -290,7 +290,16 @@
             pBatTest: getEls('.p-bat-test')
         };
 
-        document.getElementById('theme-switch').onclick = () => document.body.classList.toggle('light-theme');
+        // document.getElementById('theme-switch').onclick = () => document.body.classList.toggle('light-theme');
+        if (localStorage.getItem('theme') === 'light') {
+            document.body.classList.add('light-theme');
+        }
+        document.getElementById('theme-switch').onclick = () => {
+            document.body.classList.toggle('light-theme');
+            localStorage.setItem('theme',
+                document.body.classList.contains('light-theme') ? 'light' : 'dark'
+            );
+        };
 
         let simState = 0; let tickCount = 0; let soc = 75.0;
 
