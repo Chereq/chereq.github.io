@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>UPS Web Interface</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Smooth modern font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    :root {
+      --bg: #f4f5f7;
+      --card: #ffffff;
+      --text: #1a1a1a;
+      --text-soft: #555;
+      --border: #dcdcdc;
+      --accent: #1f4f7b;
+      --accent-soft: rgba(31,79,123,0.15);
+    }
+
+    body.dark {
+      --bg: #1b1d20;
+      --card: #26282c;
+      --text: #e8e8e8;
+      --text-soft: #aaa;
+      --border: #444;
+      --accent: #4ea3ff;
+      --accent-soft: rgba(78,163,255,0.15);
+    }
+
+    body {
+      margin: 0;
+      font-family: "Inter", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      transition: background .3s, color .3s;
+    }
+
+    header {
+      background: var(--accent);
+      color: #fff;
+      padding: 14px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 500;
+    }
+
+    .theme-toggle {
+      cursor: pointer;
+      padding: 6px 12px;
+      background: rgba(255,255,255,0.25);
+      border-radius: 6px;
+      font-size: 14px;
+      user-select: none;
+    }
+
+    main {
+      padding: 18px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+
+    @media (max-width: 900px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 10px;
+      padding: 18px;
+      border: 1px solid var(--border);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      transition: background .3s, border .3s;
+    }
+
+    .card h2 {
+      margin: 0 0 12px;
+      font-size: 17px;
+      font-weight: 600;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .small {
+      font-size: 12px;
+      color: var(--text-soft);
+    }
+
+    /* Power Scheme */
+    .power-diagram {
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+    }
+
+    .diagram-row {
+      display: flex;
+      align-items: stretch;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .node {
+      flex: 1;
+      min-width: 120px;
+      text-align: center;
+    }
+
+    .node-box {
+      border: 1px solid var(--border);
+      background: var(--bg);
+      border-radius: 10px;
+      padding: 14px;
+      min-height: 110px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      transition: background .3s, border .3s;
+    }
+
+    .node-box.active {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .node-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .arrow {
+      flex: 0 0 auto;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      font-size: 22px;
+      color: var(--text-soft);
+      padding: 0 6px;
+      text-align: center;
+    }
+
+    .arrow-label {
+      font-size: 11px;
+      margin-top: 4px;
+      color: var(--text-soft);
+    }
+
+    /* Parameters */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    @media (max-width: 600px) {
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .param-row {
+      display: flex;
+      justify-content: space-between;
+      margin: 4px 0;
+      font-size: 14px;
+    }
+
+    .param-label {
+      color: var(--text-soft);
+    }
+
+    .param-value {
+      font-weight: 600;
+    }
+
+    /* Battery bar */
+    .battery-bar-container {
+      background: #777;
+      border-radius: 6px;
+      overflow: hidden;
+      height: 18px;
+      margin-top: 6px;
+    }
+
+    .battery-bar {
+      height: 100%;
+      width: 50%;
+      background: linear-gradient(90deg, #4caf50, #8bc34a);
+      transition: width .4s ease;
+    }
+
+    /* Accordion */
+    .accordion-header {
+      padding: 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 10px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .accordion-content {
+      display: none;
+      padding: 10px 0;
+    }
+
+    footer {
+      padding: 12px 20px;
+      font-size: 13px;
+      color: var(--text-soft);
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+    }
+  </style>
+</head>
+
+<body>
+<header>
+  <h1>UPS Monitoring Panel</h1>
+  <div class="theme-toggle" id="themeToggle">🌙 Dark mode</div>
+</header>
+
+<main>
+  <!-- Power Scheme -->
+  <section class="card">
+    <h2>Power Scheme</h2>
+    <div class="power-diagram">
+      <div class="diagram-row">
+        <div class="node">
+          <div class="node-title">Input</div>
+          <div class="node-box" id="node-input">
+            <div id="input-v-text">24.0 V</div>
+            <div class="small" id="input-availability">Available</div>
+          </div>
+        </div>
+
+        <div class="arrow">
+          ➜
+          <div class="arrow-label">Input → Charger</div>
+        </div>
+
+        <div class="node">
+          <div class="node-title">Charger</div>
+          <div class="node-box" id="node-charger">
+            <div id="charger-mode">Idle</div>
+            <div class="small" id="charger-temp">Temp: 35 °C</div>
+          </div>
+        </div>
+
+        <div class="arrow">
+          ➜
+          <div class="arrow-label">Charger → Battery</div>
+        </div>
+
+        <div class="node">
+          <div class="node-title">Battery</div>
+          <div class="node-box" id="node-battery">
+            <div id="battery-v-text">14.8 V</div>
+            <div class="small" id="battery-state-text">Discharging</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="diagram-row">
+        <div class="node">
+          <div class="node-title">Source</div>
+          <div class="node-box" id="node-source">
+            <div id="source-type">Source: Input</div>
+            <div class="small" id="source-temp">Path temp: 40 °C</div>
+          </div>
+        </div>
+
+        <div class="arrow">
+          ➜
+          <div class="arrow-label">DC/DC Output Converter</div>
+        </div>
+
+        <div class="node">
+          <div class="node-title">Output</div>
+          <div class="node-box active" id="node-output">
+            <div id="output-v-text">12.0 V</div>
+            <div class="small" id="output-p-text">Load: 100 W</div>
+            <div class="small" id="output-temp">Conv. temp: 45 °C</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Parameters -->
+  <section class="card">
+    <h2>Electrical Parameters</h2>
+
+    <div class="grid-2">
+      <div>
+        <h3>Input</h3>
+        <div class="param-row"><span class="param-label">Voltage:</span><span class="param-value" id="param-input-v">24.0 V</span></div>
+        <div class="param-row"><span class="param-label">Current:</span><span class="param-value" id="param-input-i">0.00 A</span></div>
+        <div class="param-row"><span class="param-label">Power:</span><span class="param-value" id="param-input-p">0 W</span></div>
+      </div>
+
+      <div>
+        <h3>Output</h3>
+        <div class="param-row"><span class="param-label">Voltage:</span><span class="param-value" id="param-output-v">12.0 V</span></div>
+        <div class="param-row"><span class="param-label">Current:</span><span class="param-value" id="param-output-i">8.33 A</span></div>
+        <div class="param-row"><span class="param-label">Power:</span><span class="param-value" id="param-output-p">100 W</span></div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div>
+        <h3>Battery</h3>
+        <div class="param-row"><span class="param-label">Voltage:</span><span class="param-value" id="param-batt-v">14.8 V</span></div>
+        <div class="param-row"><span class="param-label">Current:</span><span class="param-value" id="param-batt-i">-5.00 A</span></div>
+        <div class="param-row"><span class="param-label">Power:</span><span class="param-value" id="param-batt-p">-74 W</span></div>
+      </div>
+
+      <div>
+        <h3>Battery Charge</h3>
+        <div class="battery-bar-container">
+          <div class="battery-bar" id="battery-bar"></div>
+        </div>
+        <div class="param-row">
+          <span id="battery-soc-text">60 %</span>
+          <span id="battery-status-text">Status: OK</span>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin-top:12px;">Converter Temperatures</h3>
+    <div class="param-row"><span class="param-label">Charger:</span><span class="param-value" id="temp-charger">38 °C</span></div>
+    <div class="param-row"><span class="param-label">Input path:</span><span class="param-value" id="temp-input-path">40 °C</span></div>
+    <div class="param-row"><span class="param-label">Output converter:</span><span class="param-value" id="temp-output-path">45 °C</span></div>
+  </section>
+
+  <!-- Graphs -->
+  <section class="card">
+    <h2>Graphs</h2>
+
+    <div class="accordion-header" onclick="toggleAccordion('g1')">📈 Input Voltage / Current</div>
+    <div class="accordion-content" id="g1"><canvas id="chartInput"></canvas></div>
+
+    <div class="accordion-header" onclick="toggleAccordion('g2')">📉 Output Power</div>
+    <div class="accordion-content" id="g2"><canvas id="chartOutput"></canvas></div>
+
+    <div class="accordion-header" onclick="toggleAccordion('g3')">🔋 Battery Voltage / SoC</div>
+    <div class="accordion-content" id="g3"><canvas id="chartBattery"></canvas></div>
+
+    <div class="accordion-header" onclick="toggleAccordion('g4')">🌡 Temperatures</div>
+    <div class="accordion-content" id="g4"><canvas id="chartTemp"></canvas></div>
+  </section>
+</main>
+
+<footer>
+  <span>Last update: <span id="last-update">—</span></span>
+  <span>JSON polling active</span>
+</footer>
+
+<script>
+  /* Theme */
+  const themeToggle = document.getElementById("themeToggle");
+  function applyTheme() {
+    const dark = localStorage.getItem("theme") === "dark";
+    document.body.classList.toggle("dark", dark);
+    themeToggle.textContent = dark ? "☀ Light mode" : "🌙 Dark mode";
+  }
+  themeToggle.onclick = () => {
+    const dark = !(localStorage.getItem("theme") === "dark");
+    localStorage.setItem("theme", dark ? "dark" : "light");
+    applyTheme();
+  };
+  applyTheme();
+
+  /* Accordion */
+  function toggleAccordion(id) {
+    const el = document.getElementById(id);
+    el.style.display = el.style.display === "block" ? "none" : "block";
+  }
+
+  /* Charts */
+  function makeChart(ctx, labels, colors) {
+    return new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: [],
+        datasets: labels.map((l, i) => ({
+          label: l,
+          data: [],
+          borderColor: colors[i],
+          tension: 0.25,
+          borderWidth: 2
+        }))
+      },
+      options: {
+        responsive: true,
+        animation: false,
+        scales: { x: { display: false } }
+      }
+    });
+  }
+
+  const chartInput = makeChart(
+    document.getElementById("chartInput"),
+    ["Input Voltage (V)", "Input Current (A)"],
+    ["#4ea3ff", "#ff9800"]
+  );
+  const chartOutput = makeChart(
+    document.getElementById("chartOutput"),
+    ["Output Power (W)"],
+    ["#4caf50"]
+  );
+  const chartBattery = makeChart(
+    document.getElementById("chartBattery"),
+    ["Battery Voltage (V)", "Battery SoC (%)"],
+    ["#8bc34a", "#03a9f4"]
+  );
+  const chartTemp = makeChart(
+    document.getElementById("chartTemp"),
+    ["Charger Temp", "Input Path Temp", "Output Temp"],
+    ["#ff5722", "#ff9800", "#f44336"]
+  );
+
+  function addPoint(chart, label, values) {
+    chart.data.labels.push(label);
+    chart.data.datasets.forEach((ds, i) => {
+      ds.data.push(values[i]);
+      if (ds.data.length > 50) ds.data.shift();
+    });
+    if (chart.data.labels.length > 50) chart.data.labels.shift();
+    chart.update();
+  }
+
+  /* Test data */
+  function generateTestJson() {
+    const now = Date.now();
+    const phase = Math.floor((now / 12000) % 2);
+    const usingInput = phase === 0;
+
+    const inputVoltage = 24.0;
+    const outputPower = 100 + 40 * Math.sin(now / 30000);
+    const outputVoltage = 12.0;
+    const outputCurrent = outputPower / outputVoltage;
+
+    const batteryVoltage = 14.4 + 2.4 * Math.sin(now / 60000);
+    const soc = Math.round(57.5 + 37.5 * Math.sin(now / 90000));
+
+    let inputPower = 0, inputCurrent = 0;
+    let batteryPower = 0, batteryCurrent = 0;
+    let batteryState = "Idle";
+
+    if (usingInput) {
+      const loadInputPower = outputPower / 0.93;
+      const chargePower = 30 + 10 * Math.sin(now / 45000);
+      inputPower = loadInputPower + chargePower;
+      inputCurrent = inputPower / inputVoltage;
+
+      batteryPower = chargePower;
+      batteryCurrent = batteryPower / batteryVoltage;
+      batteryState = "Charging";
+    } else {
+      batteryPower = -outputPower / 0.92;
+      batteryCurrent = batteryPower / batteryVoltage;
+      batteryState = "Discharging";
+    }
+
+    return {
+      timestamp: new Date().toISOString(),
+      input: { available: true, voltage: inputVoltage, current: inputCurrent, power: inputPower },
+      output: { voltage: outputVoltage, current: outputCurrent, power: outputPower },
+      battery: { voltage: batteryVoltage, current: batteryCurrent, power: batteryPower, soc, state: batteryState },
+      converters: {
+        charger: { temperature: 32 + (batteryState === "Charging" ? 8 : 2), mode: batteryState === "Charging" ? "Charging" : "Idle" },
+        inputPath: { temperature: 35 + (usingInput ? 7 : 1) },
+        outputPath: { temperature: 38 + (outputPower - 60) / 10 }
+      },
+      routing: { outputSource: usingInput ? "input" : "battery" }
+    };
+  }
+
+  /* UI update */
+  function updateUI(data) {
+    // Input
+    document.getElementById("param-input-v").textContent = data.input.voltage.toFixed(1) + " V";
+    document.getElementById("param-input-i").textContent = data.input.current.toFixed(2) + " A";
+    document.getElementById("param-input-p").textContent = data.input.power.toFixed(0) + " W";
+    document.getElementById("input-v-text").textContent = data.input.voltage.toFixed(1) + " V";
+    document.getElementById("input-availability").textContent = data.input.available ? "Available" : "Not available";
+
+    // Output
+    document.getElementById("param-output-v").textContent = data.output.voltage.toFixed(1) + " V";
+    document.getElementById("param-output-i").textContent = data.output.current.toFixed(2) + " A";
+    document.getElementById("param-output-p").textContent = data.output.power.toFixed(0) + " W";
+    document.getElementById("output-v-text").textContent = data.output.voltage.toFixed(1) + " V";
+    document.getElementById("output-p-text").textContent = "Load: " + data.output.power.toFixed(0) + " W";
+    document.getElementById("output-temp").textContent = "Conv. temp: " + data.converters.outputPath.temperature.toFixed(1) + " °C";
+
+    // Battery
+    document.getElementById("param-batt-v").textContent = data.battery.voltage.toFixed(2) + " V";
+    document.getElementById("param-batt-i").textContent = data.battery.current.toFixed(2) + " A";
+    document.getElementById("param-batt-p").textContent = data.battery.power.toFixed(0) + " W";
+    document.getElementById("battery-v-text").textContent = data.battery.voltage.toFixed(2) + " V";
+    document.getElementById("battery-state-text").textContent = data.battery.state;
+
+    const soc = Math.max(0, Math.min(100, data.battery.soc));
+    document.getElementById("battery-bar").style.width = soc + "%";
+    document.getElementById("battery-soc-text").textContent = soc + " %";
+    document.getElementById("battery-status-text").textContent =
+      soc < 20 ? "Status: Low" : soc > 90 ? "Status: Full" : "Status: OK";
+
+    // Temps
+    document.getElementById("temp-charger").textContent = data.converters.charger.temperature.toFixed(1) + " °C";
+    document.getElementById("temp-input-path").textContent = data.converters.inputPath.temperature.toFixed(1) + " °C";
+    document.getElementById("temp-output-path").textContent = data.converters.outputPath.temperature.toFixed(1) + " °C";
+    document.getElementById("charger-mode").textContent = data.converters.charger.mode;
+    document.getElementById("charger-temp").textContent = "Temp: " + data.converters.charger.temperature.toFixed(1) + " °C";
+    document.getElementById("source-temp").textContent = "Path temp: " + data.converters.inputPath.temperature.toFixed(1) + " °C";
+
+    // Routing/source
+    const source = data.routing.outputSource;
+    document.getElementById("source-type").textContent = "Source: " + (source === "input" ? "Input" : "Battery");
+    document.getElementById("node-input").classList.toggle("active", source === "input");
+    document.getElementById("node-battery").classList.toggle("active", source === "battery");
+    document.getElementById("node-source").classList.add("active");
+
+    // Time
+    document.getElementById("last-update").textContent =
+      new Date(data.timestamp).toLocaleTimeString();
+
+    // Charts
+    const label = new Date(data.timestamp).toLocaleTimeString();
+    addPoint(chartInput, label, [data.input.voltage, data.input.current]);
+    addPoint(chartOutput, label, [data.output.power]);
+    addPoint(chartBattery, label, [data.battery.voltage, soc]);
+    addPoint(chartTemp, label, [
+      data.converters.charger.temperature,
+      data.converters.inputPath.temperature,
+      data.converters.outputPath.temperature
+    ]);
+  }
+
+  function poll() {
+    const data = generateTestJson();
+    updateUI(data);
+    // For real backend:
+    // fetch('/api/ups-status').then(r => r.json()).then(updateUI).catch(console.error);
+  }
+
+  poll();
+  setInterval(poll, 2000);
+</script>
+</body>
+</html>
