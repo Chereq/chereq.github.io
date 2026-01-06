@@ -15,7 +15,7 @@
             --accent-blue: #2196f3;   /* Input */
             --accent-yellow: #d38b00; /* Battery */
             --accent-green: #4caf50;  /* Output */
-            --accent-slate: #7FA4B5;  /* System/Internal (Converter, Charger, Test) */
+            --accent-slate: #78909c;  /* System/Internal (Converter, Charger, Test) */
             --accent-red: #f44336;    /* Critical/Backup Flow */
 
             --line-inactive: #444;
@@ -27,7 +27,7 @@
             --text-main: #2c3e50;
             --text-muted: #7f8c8d;
             --line-inactive: #e0e0e0;
-            --accent-slate: #78909c;
+            --accent-slate: #90a4ae;
         }
 
         body {
@@ -102,7 +102,7 @@
         .svg-block.active-blue { stroke: var(--accent-blue); fill: rgba(33, 150, 243, 0.1); }
         .svg-block.active-yellow { stroke: var(--accent-yellow); fill: rgba(255, 152, 0, 0.1); }
         .svg-block.active-green { stroke: var(--accent-green); fill: rgba(76, 175, 80, 0.1); }
-        .svg-block.active-system { stroke: var(--accent-slate); fill: rgba(96, 125, 139, 0.1); } /* Unified System Color */
+        .svg-block.active-system { stroke: var(--accent-slate); fill: rgba(120, 144, 156, 0.1); }
         .svg-block.active-alert { stroke: var(--accent-red); fill: rgba(244, 67, 54, 0.1); }
 
         /* Text Styles */
@@ -270,167 +270,279 @@
         const getEls = (selector) => document.querySelectorAll(selector);
 
         const els = {
-            // Metrics
             vIn: document.getElementById('v-in'), aIn: document.getElementById('a-in'), wIn: document.getElementById('w-in'),
             vBat: document.getElementById('v-bat'), aBat: document.getElementById('a-bat'), soc: document.getElementById('soc'), bFill: document.getElementById('b-fill'),
             vOut: document.getElementById('v-out'), aOut: document.getElementById('a-out'), wOut: document.getElementById('w-out'),
             status: document.getElementById('sys-status'),
 
-            // SVG Text
             txtIn: getEls('.txt-in'), txtChg: getEls('.txt-chg'), txtBat: getEls('.txt-bat'),
             txtConv: getEls('.txt-conv'), txtOut: getEls('.txt-out'), txtTest: getEls('.txt-test'),
 
-            // SVG Blocks (Rects)
             rIn: getEls('.r-input'), rChg: getEls('.r-chg'), rBat: getEls('.r-bat'),
             rConv: getEls('.r-conv'), rOut: getEls('.r-out'), rTest: getEls('.r-test'),
 
-            // SVG Paths
             pInMain: getEls('.p-in-main'), pBypass: getEls('.p-bypass'), pInChg: getEls('.p-in-chg'),
             pChgBat: getEls('.p-chg-bat'), pBatConv: getEls('.p-bat-conv'), pOut: getEls('.p-out'),
             pBatTest: getEls('.p-bat-test')
         };
 
-        // document.getElementById('theme-switch').onclick = () => document.body.classList.toggle('light-theme');
-        if (localStorage.getItem('theme') === 'light') {
-            document.body.classList.add('light-theme');
-        }
+        if (localStorage.getItem('theme') === 'light') document.body.classList.add('light-theme');
         document.getElementById('theme-switch').onclick = () => {
             document.body.classList.toggle('light-theme');
-            localStorage.setItem('theme',
-                document.body.classList.contains('light-theme') ? 'light' : 'dark'
-            );
+            localStorage.setItem('theme', document.body.classList.contains('light-theme') ? 'light' : 'dark');
         };
 
-        let simState = 0; let tickCount = 0; let soc = 75.0;
+        // --- DATA SIMULATION ---
+        let simState = 0;
+        let tickCount = 0;
+        let soc = 75.0;
 
-        function updateSimulation() {
-            tickCount++; if (tickCount % 6 === 0) simState = (simState + 1) % 4;
+        // Mock function to simulate fetching JSON from server
+        function fetchUPSData() {
+            // In real app: return fetch('/api/ups-status').then(r => r.json());
+
+            // Simulation Logic
+            tickCount++;
+            if (tickCount % 6 === 0) simState = (simState + 1) % 6; // 6 states now
+
             const noise = () => (Math.random() - 0.5) * 0.15;
-            let data = {
-                inV: 0, inA: 0, outV: 12.0 + noise(), outA: 3.5 + noise(), batV: 0, batA: 0, testW: 0,
-                tempChg: 35 + Math.random(), tempConv: 42 + Math.random(), tempBat: 30 + Math.random(), tempTest: 25 + Math.random(),
-                mode: ''
+
+            // Default structure
+            let json = {
+                system: { status_text: "INIT", alert: false },
+                input: { voltage: 0, current: 0, power: 0, connected: false },
+                charger: { enabled: false, temperature: 35.0 },
+                battery: { voltage: 0, current: 0, soc: 0, temperature: 25.0, health: 100 },
+                converter: { active: false, source: 'none', temperature: 40.0 }, // source: 'input', 'battery', 'none'
+                output: { voltage: 0, current: 0, power: 0, enabled: false },
+                test_load: { enabled: false, temperature: 25.0, power: 0 }
             };
-            const outPower = data.outV * data.outA;
 
-            if (simState === 0) { // CHARGE
-                data.mode = 'CHARGE'; data.inV = 24.0 + noise();
-                if (soc < 98) { data.batA = 1.5; soc += 0.4; data.tempChg += 1; data.tempBat += 0.2; }
-                else { data.batA = 0.1; data.tempChg -= 0.5; data.tempBat -= 0.1; }
-                data.batV = 13.5 + (soc/100 * 3.0);
-                data.inA = (outPower + (data.batV * data.batA)) / 0.9 / data.inV;
-                data.tempTest -= 0.5;
-            } else if (simState === 1) { // ONLINE
-                data.mode = 'ONLINE';
-                data.inV = 24.0 + noise();
-                data.batA = 0.0;
-                data.batV = 13.5 + (soc/100 * 3.0);
-                data.inA = (outPower) / 0.92 / data.inV;
-                data.tempChg -= 0.3;
-                data.tempBat -= 0.1;
-                data.tempTest -= 0.3;
-            } else if (simState === 2) { // TEST
-                data.mode = 'BATTERY TEST'; data.inV = 24.0 + noise();
-                data.batA = -2.5; soc -= 0.3;
-                data.batV = 13.5 + (soc/100 * 3.0) - 0.3;
-                data.inA = (outPower) / 0.92 / data.inV;
-                data.testW = data.batV * Math.abs(data.batA);
-                data.tempChg -= 1; data.tempBat += 0.5; data.tempTest += 2.0;
-            } else { // BACKUP
-                data.mode = 'BATTERY BACKUP'; data.inV = 0; data.inA = 0;
-                data.batA = -1 * (outPower / 0.9 / 13.0); soc -= 0.6;
-                data.batV = 13.5 + (soc/100 * 3.0) - 0.5;
-                data.tempConv += 0.5; data.tempBat += 0.3; data.tempTest -= 0.5;
+            const loadCurrent = 3.5 + noise();
+            const loadVoltage = 12.0 + noise();
+
+            // --- State Machine ---
+            switch (simState) {
+                case 0: // CHARGING (Mains OK, Charger ON, Output on Input)
+                    json.system.status_text = "CHARGING";
+                    json.input.connected = true;
+                    json.input.voltage = 24.2 + noise();
+                    json.charger.enabled = true;
+                    json.converter.active = true;
+                    json.converter.source = 'input';
+                    json.output.enabled = true;
+
+                    if (soc < 98) { soc += 0.5; json.battery.current = 1.5; }
+                    else { json.battery.current = 0.1; } // Float
+
+                    json.battery.voltage = 13.5 + (soc/100 * 3.0);
+                    // Input Power = Output + Charging
+                    const pOut = loadVoltage * loadCurrent;
+                    const pChg = json.battery.voltage * json.battery.current;
+                    json.input.power = (pOut + pChg) / 0.9;
+                    json.input.current = json.input.power / json.input.voltage;
+                    break;
+
+                case 1: // FULL / STANDBY (Mains OK, Charger Float, Output on Input)
+                    json.system.status_text = "ONLINE";
+                    json.input.connected = true;
+                    json.input.voltage = 24.1 + noise();
+                    json.charger.enabled = false; // Still enabled but float
+                    json.converter.active = true;
+                    json.converter.source = 'input';
+                    json.output.enabled = true;
+
+                    json.battery.current = 0.05; // Trickle
+                    json.battery.voltage = 16.5; // Full 4S
+                    json.input.current = (loadVoltage * loadCurrent) / 0.92 / json.input.voltage;
+                    break;
+
+                case 2: // BACKUP (Mains Fail, Output on Battery)
+                    json.system.status_text = "BACKUP";
+                    json.system.alert = true;
+                    json.input.connected = false;
+                    json.input.voltage = 0;
+                    json.charger.enabled = false;
+                    json.converter.active = true;
+                    json.converter.source = 'battery';
+                    json.output.enabled = true;
+
+                    soc -= 0.6;
+                    json.battery.current = -1 * (loadVoltage * loadCurrent / 0.9 / 14.0);
+                    json.battery.voltage = 14.0 + (soc/100 * 2.5);
+                    break;
+
+                case 3: // TEST (Mains OK, Output on Input, Bat on Test)
+                    json.system.status_text = "SELF TEST";
+                    json.input.connected = true;
+                    json.input.voltage = 24.2 + noise();
+                    json.charger.enabled = false;
+                    json.converter.active = true;
+                    json.converter.source = 'input'; // Load powered by mains
+                    json.output.enabled = true;
+                    json.test_load.enabled = true;
+
+                    soc -= 0.4;
+                    json.battery.current = -2.5; // Test discharge
+                    json.battery.voltage = 14.0 + (soc/100 * 2.5) - 0.2;
+                    json.test_load.power = Math.abs(json.battery.voltage * json.battery.current);
+
+                    json.input.current = (loadVoltage * loadCurrent) / 0.92 / json.input.voltage;
+                    break;
+
+                case 4: // INPUT IDLE (Mains Present but Switches Open - No flow)
+                    json.system.status_text = "INPUT IDLE";
+                    json.input.connected = true; // Voltage detected
+                    json.input.voltage = 24.0 + noise();
+                    json.charger.enabled = false; // Switch open
+                    json.converter.active = true;
+                    json.converter.source = 'battery'; // Running on bat despite input present
+                    json.output.enabled = true;
+
+                    soc -= 0.6;
+                    json.battery.current = -1 * (loadVoltage * loadCurrent / 0.9 / 14.0);
+                    json.battery.voltage = 14.0 + (soc/100 * 2.5);
+                    break;
+
+                case 5: // BACKUP + TEST (Mains Fail, Output on Battery, Bat on Test) (WTF is going on?!)
+                    json.system.status_text = "BACKUP SELF TEST";
+                    json.input.connected = false;
+                    json.input.voltage = 0;
+                    json.charger.enabled = false;
+                    json.converter.active = true;
+                    json.converter.source = 'battery';
+                    json.output.enabled = true;
+                    json.test_load.enabled = true;
+
+                    soc -= 1;
+                    json.battery.current = -3.5 * (loadVoltage * loadCurrent / 0.9 / 14.0);
+                    json.battery.voltage = 14.0 + (soc/100 * 2.5);
+                    json.test_load.power = Math.abs(json.battery.voltage * json.battery.current);
+                    break;
             }
-            soc = Math.min(100, Math.max(0, soc)); data.soc = soc;
-            return data;
+
+            // Common assignments
+            json.battery.soc = Math.min(100, Math.max(0, soc));
+            json.output.voltage = json.output.enabled ? loadVoltage : 0;
+            json.output.current = json.output.enabled ? loadCurrent : 0;
+            json.output.power = json.output.voltage * json.output.current;
+            json.input.power = json.input.voltage * json.input.current;
+
+            json.charger.power = json.charger.enabled ? (json.battery.voltage * Math.max(0, json.battery.current)) : 0;
+            json.converter.power = json.converter.active ? json.output.power : 0;
+
+            return Promise.resolve(json);
         }
 
-        function render(d) {
-            // Metrics
-            els.vIn.innerText = d.inV.toFixed(1) + ' V'; els.aIn.innerText = d.inA.toFixed(1); els.wIn.innerText = (d.inV * d.inA).toFixed(0);
-            els.vBat.innerText = d.batV.toFixed(1) + ' V'; els.aBat.innerText = d.batA.toFixed(1); els.soc.innerText = d.soc.toFixed(0); els.bFill.style.width = d.soc + '%';
-            els.vOut.innerText = d.outV.toFixed(1) + ' V'; els.aOut.innerText = d.outA.toFixed(1); els.wOut.innerText = (d.outV * d.outA).toFixed(0);
+        // --- VISUALIZATION UPDATE ---
+        function updateVisuals(data) {
+            // 1. Text Metrics
+            els.status.innerText = data.system.status_text;
+            els.status.style.color = data.system.alert ? 'var(--accent-red)' : 'var(--text-main)';
 
-            // SVG Text
-            const setText = (list, val) => list.forEach(el => el.textContent = val);
-            setText(els.txtIn, `${d.inV.toFixed(1)}V / ${d.inA.toFixed(1)}A`);
-            setText(els.txtChg, `${(d.batV * Math.max(0, d.batA)).toFixed(0)}W / ${d.tempChg.toFixed(0)}°C`);
-            setText(els.txtBat, `${d.batV.toFixed(1)}V / ${d.batA.toFixed(1)}A / ${d.tempBat.toFixed(0)}°C`);
-            setText(els.txtConv, `${(d.outV * d.outA).toFixed(0)}W / ${d.tempConv.toFixed(0)}°C`);
-            setText(els.txtOut, `${d.outV.toFixed(1)}V / ${d.outA.toFixed(1)}A`);
-            setText(els.txtTest, `${d.testW.toFixed(0)}W / ${d.tempTest.toFixed(0)}°C`);
+            const setTxt = (list, val) => list.forEach(el => el.textContent = val);
 
-            // Reset
-            const resetClass = (list, cls) => list.forEach(el => el.setAttribute('class', cls));
-            [els.pInMain, els.pBypass, els.pInChg, els.pChgBat, els.pBatConv, els.pOut, els.pBatTest].forEach(l => resetClass(l, 'svg-path'));
+            // Input
+            els.vIn.innerText = data.input.voltage.toFixed(1) + ' V';
+            els.aIn.innerText = data.input.current.toFixed(1);
+            els.wIn.innerText = data.input.power.toFixed(0);
+            setTxt(els.txtIn, `${data.input.voltage.toFixed(1)}V / ${data.input.current.toFixed(1)}A`);
 
-            // Reset Blocks to base class
-            const blockLists = [els.rIn, els.rChg, els.rBat, els.rConv, els.rOut, els.rTest];
-            blockLists.forEach(list => list.forEach(el => el.setAttribute('class', 'svg-block ' + el.classList[1])));
+            // Charger
+            setTxt(els.txtChg, `${data.charger.power.toFixed(0)}W / ${data.charger.temperature.toFixed(0)}°C`);
 
-            els.status.innerText = d.mode;
+            // Battery
+            els.vBat.innerText = data.battery.voltage.toFixed(1) + ' V';
+            els.aBat.innerText = data.battery.current.toFixed(1);
+            els.soc.innerText = data.battery.soc.toFixed(0);
+            els.bFill.style.width = data.battery.soc + '%';
+            // Determine Bat color based on SoC
+            let batColor = 'var(--accent-green)';
+            if(data.battery.soc < 30) batColor = 'var(--accent-yellow)';
+            if(data.battery.soc < 15) batColor = 'var(--accent-red)';
+            els.bFill.style.backgroundColor = batColor;
 
-            // --- ANIMATION LOGIC ---
-            const addCls = (list, clss) => list.forEach(el => el.classList.add(...clss));
-            const highlight = (list, type) => list.forEach(el => el.classList.add(`active-${type}`));
+            setTxt(els.txtBat, `${data.battery.voltage.toFixed(1)}V / ${data.battery.current.toFixed(1)}A / ${data.battery.temperature.toFixed(0)}°C`);
 
-            if (simState === 0) { // CHARGE
-                els.status.style.color = 'var(--accent-blue)';
-                // Paths
-                addCls(els.pInMain, ['anim-fwd', 'stroke-blue']);
-                addCls(els.pBypass, ['anim-fwd', 'stroke-blue']);
-                addCls(els.pInChg, ['anim-fwd', 'stroke-blue']);
-                addCls(els.pChgBat, ['anim-fwd', 'stroke-blue']);
-                addCls(els.pOut, ['anim-fwd', 'stroke-blue']);
+            // Converter
+            setTxt(els.txtConv, `${data.converter.power.toFixed(0)}W / ${data.converter.temperature.toFixed(0)}°C`);
 
-                // Blocks
-                highlight(els.rIn, 'blue');
-                highlight(els.rChg, 'system');
-                highlight(els.rBat, 'yellow');
-                highlight(els.rConv, 'system');
-                highlight(els.rOut, 'green');
+            // Output
+            els.vOut.innerText = data.output.voltage.toFixed(1) + ' V';
+            els.aOut.innerText = data.output.current.toFixed(1);
+            els.wOut.innerText = data.output.power.toFixed(0);
+            setTxt(els.txtOut, `${data.output.voltage.toFixed(1)}V / ${data.output.current.toFixed(1)}A`);
 
-            } else if (simState === 1) { // ONLINE
-                els.status.style.color = 'var(--accent-blue)';
-                // Paths
-                addCls(els.pInMain, ['anim-fwd', 'stroke-blue']);
-                addCls(els.pBypass, ['anim-fwd', 'stroke-blue']);
-                addCls(els.pOut, ['anim-fwd', 'stroke-blue']);
+            // Test
+            setTxt(els.txtTest, `${data.test_load.power.toFixed(0)}W / ${data.test_load.temperature.toFixed(0)}°C`);
 
-                // Blocks
-                highlight(els.rIn, 'blue');
-                highlight(els.rConv, 'system');
-                highlight(els.rOut, 'green');
 
-            } else if (simState === 2) { // TEST
-                els.status.style.color = 'var(--accent-yellow)';
-                // Paths
-                addCls(els.pInMain, ['anim-fwd', 'stroke-blue']);
-                addCls(els.pBypass, ['anim-fwd', 'stroke-blue']);
-                addCls(els.pOut, ['anim-fwd', 'stroke-blue']);
-                addCls(els.pBatTest, ['anim-fwd', 'stroke-yellow']);
+            // 2. BLOCK HIGHLIGHTS
+            // Helper to reset and set classes
+            const updateBlock = (list, isActive, activeClass) => {
+                list.forEach(el => {
+                    // Remove all active classes
+                    el.classList.remove('active-blue', 'active-yellow', 'active-green', 'active-system', 'active-alert');
+                    el.classList.remove('svg-block'); // temp remove base to avoid toggle issues? no, keep it
+                    el.classList.add('svg-block'); // ensure base
+                    if (isActive) el.classList.add(activeClass);
+                });
+            };
 
-                // Blocks
-                highlight(els.rIn, 'blue');
-                highlight(els.rConv, 'system');
-                highlight(els.rOut, 'green');
-                highlight(els.rBat, 'yellow');
-                highlight(els.rTest, 'system');
+            updateBlock(els.rIn, data.input.connected, 'active-blue');
+            updateBlock(els.rChg, data.charger.enabled, 'active-system');
 
-            } else { // BACKUP
-                els.status.style.color = 'var(--accent-yellow)';
-                // Paths
-                addCls(els.pBatConv, ['anim-fwd', 'stroke-yellow']);
-                addCls(els.pOut, ['anim-fwd', 'stroke-yellow']);
+            // Battery is "active" if there is current flow OR we are in backup mode
+            const batActive = Math.abs(data.battery.current) > 0.1 || data.converter.source === 'battery';
+            updateBlock(els.rBat, batActive, 'active-yellow');
 
-                // Blocks
-                highlight(els.rBat, 'yellow');
-                highlight(els.rConv, 'system');
-                highlight(els.rOut, 'green');
-            }
+            updateBlock(els.rConv, data.converter.active, 'active-system');
+            updateBlock(els.rOut, data.output.enabled, 'active-green');
+            updateBlock(els.rTest, data.test_load.enabled, 'active-system');
+
+
+            // 3. PATH ANIMATIONS
+            const updatePath = (list, condition, colorClass, animationClass = 'anim-fwd') => {
+                list.forEach(el => {
+                    el.setAttribute('class', 'svg-path'); // Reset
+                    if (condition) {
+                        el.classList.add(animationClass, colorClass);
+                    }
+                });
+            };
+
+            // Input -> Main Split
+            // Logic: Input connected AND (Charger taking power OR Converter taking power from input)
+            const inputFlowing = data.input.connected && (data.charger.enabled || data.converter.source === 'input');
+            updatePath(els.pInMain, inputFlowing, 'stroke-blue');
+
+            // Split -> Converter (Bypass)
+            updatePath(els.pBypass, data.converter.source === 'input', 'stroke-blue');
+
+            // Split -> Charger
+            updatePath(els.pInChg, data.charger.enabled, 'stroke-blue');
+
+            // Charger -> Battery
+            updatePath(els.pChgBat, data.charger.enabled, 'stroke-yellow');
+
+            // Battery -> Converter (Backup)
+            updatePath(els.pBatConv, data.converter.source === 'battery', 'stroke-yellow');
+
+            // Converter -> Output
+            updatePath(els.pOut, data.output.enabled, 'stroke-green');
+
+            // Battery -> Test Load
+            updatePath(els.pBatTest, data.test_load.enabled, 'stroke-yellow');
         }
-        setInterval(() => render(updateSimulation()), 1000); render(updateSimulation());
+
+        // --- MAIN LOOP ---
+        function tick() {
+            fetchUPSData().then(data => updateVisuals(data));
+        }
+
+        setInterval(tick, 1000);
+        tick();
+
     </script>
 </body>
 </html>
