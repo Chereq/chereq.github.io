@@ -43,14 +43,15 @@
             transition: background 0.3s, color 0.3s;
         }
 
-        .header-container {
+        .bar-container {
             display: flex;
             justify-content: space-between;
             align-items: center;
             width: 100%;
             max-width: 950px;
-            margin-bottom: 10px;
+            margin: 10px;
         }
+        .footer-text { font-size: 0.9rem; color: var(--text-muted); }
 
         h1 { margin: 0; font-size: 1.4rem; font-weight: 400; }
 
@@ -150,13 +151,12 @@
 </head>
 <body>
 
-    <div class="header-container">
+    <div class="bar-container">
         <h1>UPS System <span id="sys-status" class="status-badge">...</span></h1>
         <button class="theme-toggle" id="theme-switch">Switch Theme</button>
     </div>
 
     <div class="container">
-
         <div class="panel">
             <div class="panel-header">Power Scheme</div>
             <div class="diagram-wrapper">
@@ -266,6 +266,11 @@
             </div>
         </div>
     </div>
+    <div class="bar-container">
+        <div class="footer-text"><span id="footer-update">--</span></div>
+        <div class="footer-text"><span id="footer-status">--</span></div>
+    </div>
+
 
     <script>
         const getEls = (selector) => document.querySelectorAll(selector);
@@ -275,6 +280,7 @@
             vBat: document.getElementById('v-bat'), aBat: document.getElementById('a-bat'), soc: document.getElementById('soc'), bFill: document.getElementById('b-fill'),
             vOut: document.getElementById('v-out'), aOut: document.getElementById('a-out'), wOut: document.getElementById('w-out'),
             status: document.getElementById('sys-status'),
+            fUpdate: document.getElementById('footer-update'), fStatus: document.getElementById('footer-status'),
 
             txtIn: getEls('.txt-in'), txtChg: getEls('.txt-chg'), txtBat: getEls('.txt-bat'),
             txtConv: getEls('.txt-conv'), txtOut: getEls('.txt-out'), txtTest: getEls('.txt-test'),
@@ -439,6 +445,8 @@
             json.charger.power = json.charger.enabled ? (json.battery.voltage * Math.max(0, json.battery.current)) : 0;
             json.converter.power = json.converter.active ? json.output.power : 0;
 
+            json.timestamp = Date.now();
+
             return Promise.resolve(json);
         }
 
@@ -545,6 +553,11 @@
 
             // Battery -> Test Load
             updatePath(els.pBatTest, data.test_load.enabled, 'stroke-yellow');
+
+            // Last update
+            const upd = new Date(data.timestamp);
+            els.fUpdate.innerText = 'Last update: ' + upd.toLocaleTimeString('ru-RU');
+            els.fStatus.innerText = 'Active polling...';
         }
 
         // --- MAIN LOOP ---
